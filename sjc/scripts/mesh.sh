@@ -1,0 +1,21 @@
+CUDA_VISIBLE_DEVICES=1 \
+python run_sjc_mesh.py \
+--train_view True \
+--scene 'chair' \
+--index 6 \
+--n_steps 10000 \
+--lr 0.05 \
+--sd.scale 100.0 \
+--emptiness_weight 10000 \
+--emptiness_step 0.5 \
+--emptiness_multiplier 20.0 \
+--depth_weight 0 \
+--view_weight 10000 \
+--train_depth False \
+--train_normal False \
+--train_view False \
+--prefix 'exp_shapenet_mesh' \
+--pose.rend_hw 512 \
+--pose.up z \
+--pose.R 3.0 \
+--nerf_path "/home/rliu/Desktop/cvfiler04/ruoshi/github/sjc/data/nerf_shapenet"
