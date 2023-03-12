@@ -60,7 +60,7 @@ class VoxRF(nn.Module):
 
         self.d_scale = torch.nn.Parameter(torch.tensor(0.0))
 
-        background_latents = torch.load('../data/vae_latents.pt').mean(0)
+        background_latents = torch.load('data/vae_latents.pt').mean(0)
         self.white_bg = background_latents.reshape(4, -1).T
 
     @property
