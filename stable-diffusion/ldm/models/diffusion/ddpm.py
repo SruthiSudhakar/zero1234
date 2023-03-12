@@ -759,69 +759,6 @@ class LatentDiffusion(DDPM):
             out.append(xc)
         return out
 
-    # @torch.no_grad()
-    # def get_input(self, batch, k, return_first_stage_outputs=False, force_c_encode=False,
-    #               cond_key=None, return_original_cond=False, bs=None, return_x=False):
-    #     x = super().get_input(batch, k)
-    #     T = batch['T'].to(memory_format=torch.contiguous_format).float()
-    #     T = T[:bs].to(self.device)
-    #     if bs is not None:
-    #         x = x[:bs]
-    #     x = x.to(self.device)
-    #     encoder_posterior = self.encode_first_stage(x)
-    #     z = self.get_first_stage_encoding(encoder_posterior).detach()
-
-    #     if self.model.conditioning_key is not None:
-    #         if cond_key is None:
-    #             cond_key = self.cond_stage_key
-    #         if cond_key != self.first_stage_key:
-    #             if cond_key in ['caption', 'coordinates_bbox', "txt"]:
-    #                 xc = batch[cond_key]
-    #             elif cond_key == 'class_label':
-    #                 xc = batch
-    #             else:
-    #                 xc = super().get_input(batch, cond_key).to(self.device)
-    #         else:
-    #             xc = x
-    #         if not self.cond_stage_trainable or force_c_encode:
-    #             if isinstance(xc, dict) or isinstance(xc, list):
-    #                 c = self.get_learned_conditioning(xc)
-    #             else:
-    #                 c = self.get_learned_conditioning(xc.to(self.device))
-    #         else:
-    #             with torch.enable_grad():
-    #                 c = self.get_learned_conditioning(xc)
-    #         # print('===========', c.shape, '===========')
-    #         if bs is not None:
-    #             c = c[:bs]
-
-    #         if self.use_positional_encodings:
-    #             pos_x, pos_y = self.compute_latent_shifts(batch)
-    #             ckey = __conditioning_keys__[self.model.conditioning_key]
-    #             c = {ckey: c, 'pos_x': pos_x, 'pos_y': pos_y}
-
-    #     else:
-    #         c = None
-    #         xc = None
-    #         if self.use_positional_encodings:
-    #             pos_x, pos_y = self.compute_latent_shifts(batch)
-    #             c = {'pos_x': pos_x, 'pos_y': pos_y}
-
-    #     # z.shape: [8, 4, 64, 64]; c.shape: [8, 1, 768]
-    #     with torch.enable_grad():
-    #         c = torch.cat([c, T[:, None, :]], dim=-1)
-    #         c = self.cc_projection(c)
-    #         out = [z, c]
-
-    #     if return_first_stage_outputs:
-    #         xrec = self.decode_first_stage(z)
-    #         out.extend([x, xrec])
-    #     if return_x:
-    #         out.extend([x])
-    #     if return_original_cond:
-    #         out.append(xc)
-    #     return out
-
     @torch.no_grad()
     def decode_first_stage(self, z, predict_cids=False, force_not_quantize=False):
         if predict_cids:

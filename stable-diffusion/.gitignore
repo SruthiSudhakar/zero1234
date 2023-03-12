@@ -1,6 +1,7 @@
 inference_examples/
 logs/
 CLIP/
+taming-transformers/
 dump/
 outputs/
 flagged/

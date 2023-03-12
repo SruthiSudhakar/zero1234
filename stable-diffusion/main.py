@@ -692,19 +692,6 @@ if __name__ == "__main__":
             in_filters_current = new_state["model.diffusion_model.input_blocks.0.0.weight"]
             in_shape = in_filters_current.shape
             if in_shape != in_filters_load.shape:
-                # rank_zero_print("Modifying weights to double number of input channels")
-                # keys_to_change = [
-                #     "model.diffusion_model.input_blocks.0.0.weight",
-                #     "model_ema.diffusion_modelinput_blocks00weight",
-                # ]
-                # scale = 1e-8
-                # for k in keys_to_change:
-                #     print("modifying input weights for compatibitlity")
-                #     old_state[k] = modify_weights(old_state[k], scale=scale, n=in_shape//4 - 1)\
-
-                # InstructPix2Pix: concatenate latents of target image and condition image
-                # Our model adds additional channels to the first layer to condition on an input image.
-                # For the first layer, copy existing channel weights and initialize new channel weights to zero.
                 input_keys = [
                     "model.diffusion_model.input_blocks.0.0.weight",
                     "model_ema.diffusion_modelinput_blocks00weight",
@@ -728,23 +715,6 @@ if __name__ == "__main__":
             if len(u) > 0:
                 rank_zero_print("unexpected keys:")
                 rank_zero_print(u)
-
-            # if opt.resolution == 256:
-            #     print('============ loading weights for smaller first stage model ===========')
-            #     first_stage_path = '/home/rliu/Desktop/cvfiler04/ruoshi/github/stable-diffusion/models/first_stage_models/kl-f8/model.ckpt'
-            #     first_stage_state = torch.load(first_stage_path)['state_dict']
-            #     # keys = copy.copy(list(first_stage_state.keys()))
-            #     # for key in keys:
-            #     #     newkey = 'first_stage_model.' + key
-            #     #     first_stage_state[newkey] = first_stage_state.pop(key)
-
-            #     m, u = model.first_stage_model.load_state_dict(first_stage_state, strict=False)
-
-            #     rank_zero_print("missing keys:")
-            #     rank_zero_print(m)
-
-            #     rank_zero_print("unexpected keys for first_stage_model:")
-            #     rank_zero_print(u)
 
         # trainer and callbacks
         trainer_kwargs = dict()

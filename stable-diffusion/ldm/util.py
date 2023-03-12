@@ -62,10 +62,8 @@ def load_and_preprocess(image):
                             trimap_dilation=30,
                             trimap_erosion_iters=5,
                             fp16=False)
-
-    # images_without_background = interface([args.image])
+    
     image = image.convert('RGB')
-#     image.thumbnail([1024, 1024], Image.Resampling.LANCZOS) 
 
     image_without_background = interface([image])[0]
     image_without_background = np.array(image_without_background)
