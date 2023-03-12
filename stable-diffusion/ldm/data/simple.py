@@ -207,7 +207,7 @@ class ObjaverseDataModuleFromConfig(pl.LightningDataModule):
 
 class ObjaverseData(Dataset):
     def __init__(self,
-        root_dir='/home/rliu/Desktop/cvfiler04/datasets/objaverse/hf-objaverse-v1/views',
+        root_dir='.objaverse/hf-objaverse-v1/views',
         image_transforms=[],
         ext="png",
         default_trans=torch.zeros(3),
