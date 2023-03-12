@@ -11,6 +11,12 @@ git clone https://github.com/openai/CLIP.git
 pip install -e CLIP/ 
 ```
 
+Download checkpoint here:
+
+```
+https://drive.google.com/file/d/17ACfBpqhO5o83-ZF8HUCnz5soa4m5jF1/view?usp=sharing
+```
+
 Run gradio demo: 
 
 ```

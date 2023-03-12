@@ -1,4 +1,5 @@
 inference_examples/
+gradio_queue.db
 logs/
 CLIP/
 taming-transformers/
