@@ -99,7 +99,7 @@ class SJC(BaseConf):
 
     view_weight:        int = 10000
     prefix:             str = 'exp'
-    nerf_path:          str = "/proj/vondrick4/ruoshi/github/sjc/data/nerf_synthetic"
+    nerf_path:          str = "data/nerf_wild"
 
     @validator("vox")
     def check_vox(cls, vox_cfg, values):
