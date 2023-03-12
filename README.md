@@ -11,7 +11,7 @@ git clone https://github.com/openai/CLIP.git
 pip install -e CLIP/ 
 ```
 
-Download checkpoint here:
+Download checkpoint under `stable-diffusion`:
 
 ```
 https://drive.google.com/file/d/17ACfBpqhO5o83-ZF8HUCnz5soa4m5jF1/view?usp=sharing
