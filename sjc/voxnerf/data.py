@@ -7,7 +7,7 @@ import cv2
 from .utils import blend_rgba
 
 
-def load_blender(split, scene="lego", half_res=False, path="/home/rliu/Desktop/cvfiler04/ruoshi/github/sjc/data/nerf_synthetic"):
+def load_blender(split, scene="lego", half_res=False, path="data/nerf_synthetic"):
     assert split in ("train", "val", "test")
 
     root = Path(path) / scene

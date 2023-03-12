@@ -135,8 +135,6 @@ More details on the method and training will come in a future blog post.
 
 def run_demo(
     device_idx=0,
-    # ckpt="/home/rliu/Desktop/65000.ckpt",
-    # ckpt="logs/2023-02-28T04-10-30_sd-objaverse-finetune-c_concat-256/checkpoints/80000.ckpt",
     ckpt="last.ckpt",
     config="configs/sd-objaverse-finetune-c_concat-256.yaml",
     ):

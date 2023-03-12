@@ -37,5 +37,5 @@ python run_sjc_objaverse.py \
     --train_view True \
     --prefix 'experiments/exp_wild' \
     --vox.blend_bg_texture False \
-    --nerf_path '/home/rliu/Desktop/cvfiler04/ruoshi/github/sjc/data/nerf_wild'
+    --nerf_path 'data/nerf_wild'
 ```

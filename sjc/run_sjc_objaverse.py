@@ -283,13 +283,6 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
                         y = model.decode(y)
                     vis_routine(metric, y, depth_value)
 
-            if every(pbar, step=2500):
-                metric.put_artifact(
-                    "ckpt", ".pt", lambda fn: torch.save(vox.state_dict(), fn)
-                )
-                with EventStorage("test"):
-                    evaluate(model, vox, poser)
-
             metric.step()
             pbar.update()
             pbar.set_description(model.im_path)

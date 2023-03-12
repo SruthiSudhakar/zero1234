@@ -41,7 +41,7 @@ def get_spherical(T_target, T_cond):
     return d_T
 
 class RTMV(Dataset):
-    def __init__(self, root_dir='/home/rliu/Desktop/cvfiler04/datasets/RTMV/google_scanned',\
+    def __init__(self, root_dir='datasets/RTMV/google_scanned',\
                  first_K=64, resolution=256, load_target=False):
         self.root_dir = root_dir
         self.scene_list = sorted(next(os.walk(root_dir))[1])
@@ -82,7 +82,7 @@ class RTMV(Dataset):
             
 
 class GSO(Dataset):
-    def __init__(self, root_dir='/home/rliu/Desktop/cvfiler04/datasets/GoogleScannedObjects',\
+    def __init__(self, root_dir='datasets/GoogleScannedObjects',\
                  split='val', first_K=5, resolution=256, load_target=False):
         self.root_dir = root_dir
         with open(os.path.join(root_dir, '%s.json' % split), "r") as f:

@@ -31,8 +31,6 @@ class Args:
     num_gpus: int = -1
     """number of gpus to use. -1 means all available gpus"""
 
-    split: int = -1
-
 
 def worker(
     queue: multiprocessing.JoinableQueue,
@@ -45,7 +43,7 @@ def worker(
         if item is None:
             break
 
-        view_path = os.path.join('/home/rliu/.objaverse/hf-objaverse-v1/views_whole_sphere_split2', item.split('/')[-1][:-4])
+        view_path = os.path.join('.objaverse/hf-objaverse-v1/views_whole_sphere', item.split('/')[-1][:-4])
         if os.path.exists(view_path):
             queue.task_done()
             print('========', item, 'rendered', '========')
@@ -64,16 +62,6 @@ def worker(
         )
         print(command)
         subprocess.run(command, shell=True)
-
-        # if args.upload_to_s3:
-        #     if item.startswith("http"):
-        #         uid = item.split("/")[-1].split(".")[0]
-        #         for f in glob.glob(f"views/{uid}/*"):
-        #             s3.upload_file(
-        #                 f, "objaverse-images", f"views/{uid}/{f.split('/')[-1]}"
-        #             )
-        #     # remove the views/uid directory
-        #     shutil.rmtree(f"views/{uid}")
 
         with count.get_lock():
             count.value += 1
@@ -105,16 +93,10 @@ if __name__ == "__main__":
     with open(args.input_models_path, "r") as f:
         model_paths = json.load(f)
 
-    # total_split = 7.
-    # start = math.floor((len(model_paths) / total_split * args.split))
-    # end = math.floor((len(model_paths) / total_split * (args.split + 1)))
-    # print('start: %d, end: %d' % (start, end))
-
     model_keys = list(model_paths.keys())
-    model_keys.reverse()
 
     for item in model_keys:
-        queue.put(os.path.join('/home/rliu/.objaverse/hf-objaverse-v1', model_paths[item]))
+        queue.put(os.path.join('.objaverse/hf-objaverse-v1', model_paths[item]))
 
     # update the wandb count
     if args.log_to_wandb:

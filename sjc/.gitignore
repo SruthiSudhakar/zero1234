@@ -5,6 +5,7 @@ models/
 data/
 taming-transformers/
 exp*/
+heartbeat.json
 
 # sd1/
 # sd2/
