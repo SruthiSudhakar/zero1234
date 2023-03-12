@@ -5,9 +5,6 @@ models/
 data/
 taming-transformers/
 exp*/
-stable-diffusion/
-sd1/
-sd2/
 
 # sd1/
 # sd2/

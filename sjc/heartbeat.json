@@ -1,1 +1,1 @@
-{"beat": "2023-03-08T02:01:11", "done": true, "meter": "10000/10000 [1:03:21<00:00,  2.02it/s]", "elapsed": 3801, "caller": "/proj/vondrick4/ruoshi/github/sjc_rundi/run_sjc_baseline_wild.py:378 - sjc_3d"}
+{"beat": "2023-03-11T21:26:54", "done": false, "meter": "2425/10000 [10:19<24:21,  5.18it/s]", "elapsed": 619, "caller": "/home/rliu/Desktop/cvfiler04/ruoshi/github/zero123/sjc/run_sjc_objaverse.py:296 - sjc_3d"}

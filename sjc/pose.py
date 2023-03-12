@@ -56,7 +56,6 @@ def sample_spherical(radius_min=1.5, radius_max=2.0, maxz=1.6, minz=-0.75):
     correct = False
     while not correct:
         vec = np.random.uniform(-1, 1, 3)
-#         vec[2] = np.abs(vec[2])
         radius = np.random.uniform(radius_min, radius_max, 1)
         vec = vec / np.linalg.norm(vec, axis=0) * radius[0]
         if maxz > vec[2] > minz:
@@ -95,8 +94,7 @@ def train_eye_with_prompts(r, n, legacy=False):
     else:
         eyes = np.zeros((n, 3))
         for i in range(n):
-            # eyes[i] = sample_spherical(radius_min=1.8, radius_max=2.2, maxz=2.2, minz=-0.5)
-            eyes[i] = sample_spherical(radius_min=1.8, radius_max=2.2, maxz=2.2, minz=-2.2)
+            eyes[i] = sample_spherical(radius_min=1.8, radius_max=2.2, maxz=2.2, minz=-0.5)
         prompts = []
 
     return eyes, prompts
@@ -158,9 +156,7 @@ class Poser():
             camera_pose(e, -e, up) for e in eyes
         ]
         poses = np.stack(poses, 0)
-        # FoV during training: [30,70]
         random_Ks = [
-            # get_K(self.H, self.W, random.random() * 30 + 40) for i in range(len(poses)) # sjc
             self.K for i in range(len(poses)) # objaverse
         ]
         # return self.K, poses, prompts

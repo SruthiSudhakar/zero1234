@@ -12,6 +12,8 @@ from math import sqrt
 from adapt import ScoreAdapter
 from PIL import Image
 import requests
+import sys
+sys.path.append('../stable-diffusion')
 
 import warnings
 from transformers import logging
@@ -51,48 +53,9 @@ def load_model_from_config(config, ckpt, verbose=False):
     model.eval()
     return model
 
-
-def load_sd1_model(ckpt_root):
-    ckpt_fname = ckpt_root / "stable_diffusion" / "sd-v1-5.ckpt"
-    cfg_fname = curr_dir() / "sd1" / "configs" / "v1-inference.yaml"
-    H, W = 512, 512
-
-    config = OmegaConf.load(str(cfg_fname))
-    model = load_model_from_config(config, str(ckpt_fname))
-    return model, H, W
-
-
-def load_sd2_model(ckpt_root, v2_highres):
-    if v2_highres:
-        ckpt_fname = ckpt_root / "sd2" / "768-v-ema.ckpt"
-        cfg_fname = curr_dir() / "sd2/configs/stable-diffusion/v2-inference-v.yaml"
-        H, W = 768, 768
-    else:
-        ckpt_fname = ckpt_root / "sd2" / "512-base-ema.ckpt"
-        cfg_fname = curr_dir() / "sd2/configs/stable-diffusion/v2-inference.yaml"
-        H, W = 512, 512
-
-    config = OmegaConf.load(f"{cfg_fname}")
-    model = load_model_from_config(config, str(ckpt_fname))
-    return model, H, W
-
-def load_sdimage_model(ckpt_root):
-    ckpt_fname = curr_dir() / "stable-diffusion/models/ldm/stable-diffusion-v1" / "sd-clip-vit-l14-img-embed_ema_only.ckpt"
-    # ckpt_fname = "/home/rliu/Desktop/sd-clip-vit-l14-img-embed_ema_only.ckpt"
-    cfg_fname = curr_dir() / "stable-diffusion/configs/stable-diffusion/sd-image-condition-finetune.yaml"
-    H, W = 512, 512
-
-    config = OmegaConf.load(str(cfg_fname))
-    model = load_model_from_config(config, str(ckpt_fname))
-    return model, H, W
-
 def load_objaverse_model(ckpt_root):
-    # ckpt_fname = '/home/rliu/Desktop/cvfiler04/ruoshi/github/stable-diffusion/logs/2023-02-23T06-42-58_sd-objaverse-finetune-c_concat-256/checkpoints/last.ckpt'
-    # ckpt_fname = '/home/rliu/Desktop/cvfiler04/ruoshi/github/stable-diffusion/logs/2023-02-23T06-42-58_sd-objaverse-finetune-c_concat-256/checkpoints/45000.ckpt'
-    # ckpt_fname = '/home/rliu/Desktop/cvfiler04/ruoshi/github/stable-diffusion/logs/2023-02-23T06-42-58_sd-objaverse-finetune-c_concat-256/checkpoints/80000.ckpt'
-    ckpt_fname = '/home/rliu/Desktop/75000.ckpt'
-    cfg_fname = '/home/rliu/Desktop/cvfiler04/ruoshi/github/stable-diffusion/configs/stable-diffusion/sd-objaverse-finetune-c_concat-256.yaml'
-    # cfg_fname = '/home/rliu/Desktop/cvfiler04/ruoshi/github/stable-diffusion/configs/stable-diffusion/sd-objaverse-finetune-c_concat.yaml'
+    ckpt_fname = '../stable-diffusion/last.ckpt'
+    cfg_fname = '../stable-diffusion/configs/sd-objaverse-finetune-c_concat-256.yaml'
     H, W = 256, 256
 
     config = OmegaConf.load(str(cfg_fname))
@@ -109,16 +72,7 @@ def _sqrt(x):
 
 class StableDiffusion(ScoreAdapter):
     def __init__(self, variant, v2_highres, prompt, scale, precision, im_path=None):
-        if variant == "v1":
-            add_import_path("sd1")
-            self.model, H, W = load_sd1_model(self.checkpoint_root())
-        elif variant == "v2":
-            add_import_path("sd2")
-            self.model, H, W = load_sd2_model(self.checkpoint_root(), v2_highres)
-        elif variant == "image":
-            add_import_path("stable-diffusion")
-            self.model, H, W = load_sdimage_model(self.checkpoint_root())
-        elif variant == "objaverse":
+        if variant == "objaverse":
             add_import_path("stable-diffusion")
             self.model, H, W = load_objaverse_model(self.checkpoint_root())
         else:

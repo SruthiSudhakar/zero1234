@@ -13,16 +13,15 @@ from torchvision import transforms
 
 from my.utils import (
     tqdm, EventStorage, HeartBeat, EarlyLoopBreak,
-    get_event_storage, get_heartbeat, read_stats, SurfaceNet
+    get_event_storage, get_heartbeat, read_stats
 )
 from my.config import BaseConf, dispatch, optional_load_config
 from my.utils.seed import seed_everything
 
 from adapt import ScoreAdapter, karras_t_schedule
-from run_img_sampling import GDDPM, SD, StableDiffusion
+from run_img_sampling import SD, StableDiffusion
 from misc import torch_samps_to_imgs
 from pose import PoseConfig, camera_pose, sample_near_eye
-from mesh_metrics import evaluate_meshes
 
 from run_nerf import VoxConfig
 from voxnerf.utils import every
@@ -68,11 +67,8 @@ def tsr_stats(tsr):
 
 class SJC(BaseConf):
     family:     str = "sd"
-    gddpm:      GDDPM = GDDPM()
     sd:         SD = SD(
         variant="objaverse",
-        prompt="A high quality photo of a delicious burger",
-        im_path="data/nerf_synthetic/chair/train/r_2.png",
         scale=100.0
     )
     lr:         float = 0.05
@@ -102,9 +98,6 @@ class SJC(BaseConf):
     index:              int = 2
 
     view_weight:        int = 10000
-    train_depth:        bool = False
-    train_normal:       bool = False
-    augmentation:       bool = False
     prefix:             str = 'exp'
     nerf_path:          str = "/proj/vondrick4/ruoshi/github/sjc/data/nerf_synthetic"
 
@@ -131,8 +124,8 @@ class SJC(BaseConf):
 
 def sjc_3d(poser, vox, model: ScoreAdapter,
     lr, n_steps, emptiness_scale, emptiness_weight, emptiness_step, emptiness_multiplier,
-    depth_weight, var_red, train_view, scene, index, view_weight, train_depth, train_normal, 
-    augmentation, prefix, nerf_path, depth_smooth_weight, grad_accum, **kwargs):
+    depth_weight, var_red, train_view, scene, index, view_weight, prefix, nerf_path, \
+    depth_smooth_weight, grad_accum, **kwargs):
 
     assert model.samps_centered()
     _, target_H, target_W = model.data_shape()
@@ -149,14 +142,8 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
 
     same_noise = torch.randn(1, 4, H, W, device=model.device).repeat(bs, 1, 1, 1)
 
-    normal_filter = SurfaceNet()
-    normal_filter = normal_filter.to(model.device)
-
-    folder_name = prefix + '/scene-%s-index-%d_scale-%s_train-view-%s_train-depth-%s_train-normal-%s_augmentation-%s_view-weight-%s_emp-wt-%s_emp-mtplr-%s_emp_scl-%s' % \
-                            (scene, index, model.scale, train_view, train_depth, train_normal, augmentation, view_weight, emptiness_weight, emptiness_multiplier, emptiness_scale)
-
-    # if input is a view in nerf, load the view
-    # if train_view:
+    folder_name = prefix + '/scene-%s-index-%d_scale-%s_train-view-%s_view-weight-%s_emp-wt-%s_emp-mtplr-%s_emp_scl-%s' % \
+                            (scene, index, model.scale, train_view, view_weight, emptiness_weight, emptiness_multiplier, emptiness_scale)
 
     # load nerf view
     images_, _, poses_, mask_, fov_x = load_blender('train', scene=scene, path=nerf_path)
@@ -178,13 +165,6 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
     background_mask = torch.as_tensor(background_mask, dtype=bool, device=device_glb)
 
     print('==== loaded input view for training ====')
-    
-    # clip_model_vit = get_embed_fn('clip_vit', clip_cache_root='DietNeRF/.cache/clip')
-    # input_image_clip = (input_image + 1.) / 2
-    # input_image_clip = F.interpolate(input_image_clip, size=(224, 224), mode='bicubic')
-    # with torch.no_grad():
-    #     target_emb = clip_model_vit(input_image_clip)
-    # print('==== loaded CLIP image encoder for DietNeRF loss ====')
 
     opt.zero_grad()
 
@@ -213,27 +193,19 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
 
                 # supervise with input view
                 # if i < 100 or i % 10 == 0:
-                y_, depth_, ws_ = render_one_view(vox, aabb, H, W, input_K, input_pose, return_w=True)
                 with torch.enable_grad():
+                    y_, depth_, ws_ = render_one_view(vox, aabb, H, W, input_K, input_pose, return_w=True)
                     y_ = model.decode(y_)
-                rgb_loss = ((y_[image_mask] - input_image[image_mask]) ** 2).mean()
-                background_density = ws_[background_mask[None, :, :].repeat(ws_.shape[0], 1, 1)]
-                # background_loss = torch.log(1. + background_density).mean()
-                background_density = background_density.view([ws_.shape[0], -1])
-                background_loss = background_density.sum(0).mean()
-
-                # depth_loss = -depth_[background_mask].mean()
-                depth_loss = -torch.log(1. + depth_[background_mask]).mean()# + ((depth_[input_mask] - 2.).abs()).mean()
+                rgb_loss = ((y_ - input_image) ** 2).mean()
 
                 # depth smoothness loss
                 input_smooth_loss = depth_smooth_loss(depth_) * depth_smooth_weight * 0.1
                 input_smooth_loss.backward(retain_graph=True)
 
-
-                # input_loss = (rgb_loss + depth_loss * 10.) * float(view_weight)
                 input_loss = rgb_loss * float(view_weight)
-                # input_loss = rgb_loss * 10.
                 input_loss.backward(retain_graph=True)
+                if train_view and i % 100 == 0:
+                    metric.put_artifact("input_view", ".png", lambda fn: imwrite(fn, torch_samps_to_imgs(y_)[0]))
 
             # y: [1, 4, 64, 64] depth: [64, 64]  ws: [n, 4096]
             y, depth, ws = render_one_view(vox, aabb, H, W, Ks[i], poses[i], return_w=True)
@@ -251,19 +223,6 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
             T_target = pose[:3, -1]
             T_cond = input_pose[:3, -1]
             T = get_T(T_target, T_cond).to(model.device)
-
-            # # DietNeRF clip loss
-            # rendered_image = model.decode(y)
-            # rendered_emb = clip_model_vit(F.interpolate((rendered_image + 1.) / 2., size=(224, 224), mode='bicubic'))
-            
-            # # clip loss weighting (views closer to input has higher weight)
-            # theta_cos = math.cos(T[0])
-            # phi_cos = T[2]
-            # clip_weight = ((theta_cos + 1) / 2) * ((phi_cos + 1) / 2)
-
-            # consistency_loss = -torch.cosine_similarity(target_emb, rendered_emb, dim=-1).mean() * 50000. * clip_weight
-            # consistency_loss.backward(retain_graph=True)
-            # metric.put_scalars(**{'clip_loss': consistency_loss.item()})
 
             if isinstance(model, StableDiffusion):
                 pass
@@ -306,15 +265,6 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
             if i >= emptiness_step * n_steps:
                 smooth_loss.backward(retain_graph=True)
 
-            # save render view
-            if train_view:
-                if i % 100 == 0:
-                    with torch.no_grad():
-                        print('rgb_loss: %.5f    depth_loss: %.5f    background_loss: %.5f     input_smooth_loss: %.5f     smooth_loss: %.5f    near_loss: %.5f' % \
-                            (rgb_loss.item(), depth_loss.item(), background_loss.item(), input_smooth_loss.item(), smooth_loss.item(), near_loss.item()))
-                        metric.put_artifact("input_view", ".png", lambda fn: imwrite(fn, torch_samps_to_imgs(y_)[0]))
-
-
             depth_value = depth.clone()
 
             if i % grad_accum == (grad_accum-1):
@@ -333,12 +283,12 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
                         y = model.decode(y)
                     vis_routine(metric, y, depth_value)
 
-            # if every(pbar, step=2500):
-            #     metric.put_artifact(
-            #         "ckpt", ".pt", lambda fn: torch.save(vox.state_dict(), fn)
-            #     )
-            #     with EventStorage("test"):
-            #         evaluate(model, vox, poser)
+            if every(pbar, step=2500):
+                metric.put_artifact(
+                    "ckpt", ".pt", lambda fn: torch.save(vox.state_dict(), fn)
+                )
+                with EventStorage("test"):
+                    evaluate(model, vox, poser)
 
             metric.step()
             pbar.update()
@@ -390,24 +340,6 @@ def evaluate(score_model, vox, poser):
         "view_seq", ".mp4",
         lambda fn: stitch_vis(fn, read_stats(metric.output_dir, "view")[1])
     )
-
-    # save mesh
-    save_mesh_path = metric.put_artifact(
-        "mesh", ".obj",
-        lambda fn: vox.export_mesh(fn, erosion_kernel_size=0)
-    )
-
-    # # evaluate CD and IoU
-    # res = evaluate_meshes(score_model.input_mesh_path, save_mesh_path)
-
-    # def save_json(fn, data):
-    #     with open(fn, "w") as f:
-    #         json.dump(data, f)
-
-    # metric.put_artifact(
-    #     "mesh_metrics", ".json",
-    #     lambda fn: save_json(fn, res)
-    # )
 
     metric.step()
 
