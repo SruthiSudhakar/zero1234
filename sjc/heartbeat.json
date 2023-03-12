@@ -1,1 +1,1 @@
-{"beat": "2023-03-11T21:28:36", "done": false, "meter": "2797/10000 [12:00<23:18,  5.15it/s]", "elapsed": 720, "caller": "/home/rliu/Desktop/cvfiler04/ruoshi/github/zero123/sjc/run_sjc_objaverse.py:296 - sjc_3d"}
+{"beat": "2023-03-11T21:30:27", "done": false, "meter": "3205/10000 [13:52<24:27,  4.63it/s]", "elapsed": 832, "caller": "/home/rliu/Desktop/cvfiler04/ruoshi/github/zero123/sjc/run_sjc_objaverse.py:296 - sjc_3d"}

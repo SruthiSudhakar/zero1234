@@ -3,7 +3,8 @@ Installation:
 ```
 conda create -n zero123 python==3.9
 conda activate zero123  
-pip install -r stable-diffusion/requirements.txt  
+cd stable-diffusion
+pip install -r /requirements.txt  
 git clone https://github.com/CompVis/taming-transformers.git  
 pip install -e taming-transformers/  
 git clone https://github.com/openai/CLIP.git  
@@ -19,6 +20,7 @@ SJC:
 
 ```
 cd sjc
+pip install -r requirements.txt
 python run_sjc_objaverse.py \
     --scene 'pikachu' \
     --index 0 \
