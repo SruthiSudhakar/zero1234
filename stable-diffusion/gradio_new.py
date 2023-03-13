@@ -17,6 +17,8 @@ from torchvision import transforms
 
 
 _SHOW_INTERMEDIATE = True
+_GPU_INDEX = 0
+# _GPU_INDEX = 2
 
 
 def load_model_from_config(config, ckpt, device, verbose=False):
@@ -155,7 +157,7 @@ TBD
 
 
 def run_demo(
-    device_idx=0,
+    device_idx=_GPU_INDEX,
     ckpt='last.ckpt',
     config='configs/sd-objaverse-finetune-c_concat-256.yaml',
 ):
@@ -187,7 +189,6 @@ def run_demo(
     
     if _SHOW_INTERMEDIATE:
         output += [gr.Image(type='pil', image_mode='RGB', label='Preprocessed input image')]
-        output[1].style(grid=2)
 
     fn_with_model = partial(main, model, device)
     fn_with_model.__name__ = 'fn_with_model'
