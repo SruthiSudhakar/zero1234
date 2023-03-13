@@ -203,50 +203,8 @@ def calc_cam_cone_pts_3d(polar_deg, azimuth_deg, radius_m, fov_deg):
     cam_y = radius_m * np.sin(azimuth_rad) * np.cos(polar_rad)
     cam_z = radius_m * np.sin(polar_rad)
 
-    # Four corners of camera frustum, assuming it is looking at origin:
-
-    # incorrect:
-    # corn_x1 = radius_m * np.cos(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0)
-    # corn_y1 = radius_m * np.sin(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0)
-    # corn_z1 = radius_m * np.sin(polar_rad - fov_rad / 2.0)
-    # corn_x2 = radius_m * np.cos(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0)
-    # corn_y2 = radius_m * np.sin(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0)
-    # corn_z2 = radius_m * np.sin(polar_rad - fov_rad / 2.0)
-    # corn_x3 = radius_m * np.cos(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0)
-    # corn_y3 = radius_m * np.sin(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0)
-    # corn_z3 = radius_m * np.sin(polar_rad + fov_rad / 2.0)
-    # corn_x4 = radius_m * np.cos(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0)
-    # corn_y4 = radius_m * np.sin(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0)
-    # corn_z4 = radius_m * np.sin(polar_rad + fov_rad / 2.0)
-
-    # still incorrect:
-    # corn1 = [np.cos(azimuth_rad - fov_rad / 2.0),
-    #          np.sin(azimuth_rad - fov_rad / 2.0),
-    #          np.sin(polar_rad - fov_rad / 2.0)]
-    # corn2 = [np.cos(azimuth_rad + fov_rad / 2.0),
-    #          np.sin(azimuth_rad + fov_rad / 2.0),
-    #          np.sin(polar_rad - fov_rad / 2.0)]
-    # corn3 = [np.cos(azimuth_rad + fov_rad / 2.0),
-    #          np.sin(azimuth_rad + fov_rad / 2.0),
-    #          np.sin(polar_rad + fov_rad / 2.0)]
-    # corn4 = [np.cos(azimuth_rad - fov_rad / 2.0),
-    #          np.sin(azimuth_rad - fov_rad / 2.0),
-    #          np.sin(polar_rad + fov_rad / 2.0)]
-
-    # still incorrect:
-    # corn1 = [np.cos(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0),
-    #          np.sin(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0),
-    #          np.sin(polar_rad - fov_rad / 2.0)]
-    # corn2 = [np.cos(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0),
-    #          np.sin(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad - fov_rad / 2.0),
-    #          np.sin(polar_rad - fov_rad / 2.0)]
-    # corn3 = [np.cos(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0),
-    #          np.sin(azimuth_rad + fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0),
-    #          np.sin(polar_rad + fov_rad / 2.0)]
-    # corn4 = [np.cos(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0),
-    #          np.sin(azimuth_rad - fov_rad / 2.0) * np.cos(polar_rad + fov_rad / 2.0),
-    #          np.sin(polar_rad + fov_rad / 2.0)]
-
+    # Obtain four corners of camera frustum, assuming it is looking at origin.
+    # First, obtain camera extrinsics (rotation matrix only):
     camera_R = np.array([[np.cos(azimuth_rad) * np.cos(polar_rad),
                           -np.sin(azimuth_rad),
                           -np.cos(azimuth_rad) * np.sin(polar_rad)],
@@ -256,28 +214,19 @@ def calc_cam_cone_pts_3d(polar_deg, azimuth_deg, radius_m, fov_deg):
                          [np.sin(polar_rad),
                           0.0,
                           np.cos(polar_rad)]])
-    
-    camera_R_inv = np.linalg.inv(camera_R)
     print('camera_R:', lo(camera_R).v)
-    print('camera_R_inv:', lo(camera_R_inv).v)
 
-    # corn1 = [np.tan(fov_rad / 2.0), np.tan(fov_rad / 2.0), 1.0]
-    # corn2 = [np.tan(fov_rad / 2.0), -np.tan(fov_rad / 2.0), 1.0]
-    # corn3 = [-np.tan(fov_rad / 2.0), -np.tan(fov_rad / 2.0), 1.0]
-    # corn4 = [-np.tan(fov_rad / 2.0), np.tan(fov_rad / 2.0), 1.0]
+    # Multiply by corners in camera space to obtain go to space:
     corn1 = [-1.0, np.tan(fov_rad / 2.0), np.tan(fov_rad / 2.0)]
     corn2 = [-1.0, -np.tan(fov_rad / 2.0), np.tan(fov_rad / 2.0)]
     corn3 = [-1.0, -np.tan(fov_rad / 2.0), -np.tan(fov_rad / 2.0)]
     corn4 = [-1.0, np.tan(fov_rad / 2.0), -np.tan(fov_rad / 2.0)]
-    # corn1 = [np.tan(fov_rad / 2.0), -1.0, np.tan(fov_rad / 2.0)]
-    # corn2 = [-np.tan(fov_rad / 2.0), -1.0, np.tan(fov_rad / 2.0)]
-    # corn3 = [-np.tan(fov_rad / 2.0), -1.0, -np.tan(fov_rad / 2.0)]
-    # corn4 = [np.tan(fov_rad / 2.0), -1.0, -np.tan(fov_rad / 2.0)]
     corn1 = np.dot(camera_R, corn1)
     corn2 = np.dot(camera_R, corn2)
     corn3 = np.dot(camera_R, corn3)
     corn4 = np.dot(camera_R, corn4)
 
+    # Now attach as offset to actual 3D camera position:
     corn1 = np.array(corn1) / np.linalg.norm(corn1, ord=2)
     corn_x1 = cam_x + corn1[0]
     corn_y1 = cam_y + corn1[1]
@@ -346,21 +295,9 @@ class CameraVisualizer:
     def update_figure(self):
         fig = go.Figure()
 
-        # fig.add_trace(go.Scatter3d(
-        #     x=[self._polar],
-        #     y=[self._azimuth],
-        #     z=[self._radius],
-        #     marker=dict(color=[127], size=4)))
-
         if self._raw_image is not None:
             (H, W, C) = self._raw_image.shape
 
-            # x = np.zeros((H, W))
-            # y = np.linspace(-1, 1, W)
-            # z = np.linspace(-1, 1, H) * H / W
-            # x = np.linspace(-1, 1, W)
-            # y = np.linspace(-1, 1, H) * H / W
-            # z = np.zeros((H, W))
             x = np.zeros((H, W))
             (y, z) = np.meshgrid(np.linspace(-1.0, 1.0, W), np.linspace(1.0, -1.0, H) * H / W)
             print('x:', lo(x))
@@ -445,16 +382,6 @@ class CameraVisualizer:
                         showline=False,
                         ticks='')))
 
-        # fig.update_layout(
-        #     width=640,
-        #     height=480)
-            # scene=dict(xaxis_visible=True,
-            #             yaxis_visible=True,
-            #             zaxis_visible=True,
-            #             xaxis_title='X',
-            #             yaxis_title='Y',
-            #             zaxis_title='Z'))
-
         self._fig = fig
         return fig
 
@@ -530,17 +457,6 @@ def run_demo(
                       inputs=[image_block, preprocess_chk, polar_slider, azimuth_slider,
                               radius_slider, scale_slider, samples_slider, steps_slider],
                       outputs=[vis_output, gen_output, preproc_output])
-
-    # demo = gr.Interface(
-    #     fn=fn_with_model,
-    #     title=_TITLE,
-    #     description=_DESCRIPTION,
-    #     article=_ARTICLE,
-    #     inputs=inputs,
-    #     outputs=outputs[1:3],  # Ignore vis_output.
-    #     examples=examples,
-    #     allow_flagging='never',
-    # )
 
     demo.launch(enable_queue=True, share=True)
 
