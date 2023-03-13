@@ -5,7 +5,7 @@
 Installation:
 
 ```
-conda create -n zero123 python==3.9
+conda create -n zero123 python=3.9
 conda activate zero123
 cd stable-diffusion
 pip install -r requirements.txt

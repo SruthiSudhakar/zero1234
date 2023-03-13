@@ -1,7 +1,12 @@
+'''
+conda activate zero123
+'''
+
 import math
 import fire
 import gradio as gr
 import numpy as np
+import plotly.graph_objects as go
 import rich
 import torch
 from contextlib import nullcontext
@@ -19,6 +24,20 @@ from torchvision import transforms
 _SHOW_INTERMEDIATE = True
 _GPU_INDEX = 0
 # _GPU_INDEX = 2
+
+_TITLE = 'Zero-Shot Control of Camera Viewpoints within a Single Image'
+
+_DESCRIPTION = '''
+This demo allows you to generate novel viewpoints of an object depicted in an input image using a fine-tuned version of Stable Diffusion.
+Check out our project webpage and paper if you want to learn more about the method!
+'''
+
+_ARTICLE = '''
+## Model Card
+TBD
+## Limitations
+TBD
+'''
 
 
 def load_model_from_config(config, ckpt, device, verbose=False):
@@ -81,22 +100,11 @@ def sample_model(input_im, model, sampler, precision, h, w, ddim_steps, n_sample
             return torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0).cpu()
 
 
-def main(
-    model,
-    device,
-    input_im,
-    preprocess=True,
-    x=0.,
-    y=0.,
-    z=0.,
-    scale=3.0,
-    n_samples=4,
-    ddim_steps=50,
-    ddim_eta=1.0,
-    precision='fp32',
-    h=256,
-    w=256,
-):
+def main(model, device, input_im,
+         preprocess=True, x=0.0, y=0.0, z=0.0,
+         scale=3.0, n_samples=4, ddim_steps=50, ddim_eta=1.0,
+         precision='fp32', h=256, w=256):
+
     # input_im[input_im == [0., 0., 0.]] = [1., 1., 1., 1.]
     print('old input_im:', input_im.size)
 
@@ -109,7 +117,7 @@ def main(
         input_im = input_im.resize([256, 256], Image.Resampling.LANCZOS)
         input_im = np.asarray(input_im, dtype=np.float32) / 255.0
         # (H, W, 4) array in [0, 1].
-        
+
         # old method: very important, thresholding background
         # input_im[input_im[:, :, -1] <= 0.9] = [1., 1., 1., 1.]
 
@@ -118,7 +126,7 @@ def main(
         alpha = input_im[:, :, 3:4]
         white_im = np.ones_like(input_im)
         input_im = alpha * input_im + (1.0 - alpha) * white_im
-        
+
         input_im = input_im[:, :, 0:3]
         # (H, W, 3) array in [0, 1].
 
@@ -137,23 +145,22 @@ def main(
     for x_sample in x_samples_ddim:
         x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
         output_ims.append(Image.fromarray(x_sample.astype(np.uint8)))
-    
+
     if _SHOW_INTERMEDIATE:
         return (output_ims, show_in_im)
     else:
         return output_ims
 
 
-description = '''
-Generate novel viewpoints of an object depicted in one input image using a fine-tuned version of Stable Diffusion.
-'''
+def fig_fn(polar=0.0):
+    # create plotly figure
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[polar, 1], y=[1-polar, 1], mode='markers'))
+    return fig
 
-article = '''
-## How to use this?
-TBD
-## How does this work?
-TBD
-'''
+
+def polar_change(value):
+    return fig_fn(polar=value)
 
 
 def run_demo(
@@ -166,29 +173,43 @@ def run_demo(
     config = OmegaConf.load(config)
     model = load_model_from_config(config, ckpt, device=device)
 
+    polar_slider = gr.Slider(
+        -90, 90, value=0, step=5, label='Polar angle (vertical rotation in degrees)',
+        info='Positive values move the camera down, while negative values move the camera up.')
+    azimuth_slider = gr.Slider(
+        -90, 90, value=0, step=5, label='Azimuth angle (horizontal rotation in degrees)',
+        info='Positive values move the camera right, while negative values move the camera left.')
+    radius_slider = gr.Slider(
+        -2, 2, value=0, step=0.5, label='Radius (distance from center)',
+        info='Positive values move the camera further away, while negative values move the camera closer.')
+
     inputs = [
-        gr.Image(type='pil', image_mode='RGBA'),  # shape=[512, 512]
-        gr.Checkbox(True, label='Preprocess image (remove background and center)',
-        info='If enabled, the uploaded image will be preprocessed to remove the background and center the object by cropping and/or padding as necessary. '
-        'If disabled, the image will be used as-is, *BUT* a fully transparent or white background is required.'),
+        gr.Image(type='pil', image_mode='RGBA', label='Input image of single object'),  # shape=[512, 512]
+        gr.Checkbox(True, label='Preprocess image automatically (remove background and recenter object)',
+                    info='If enabled, the uploaded image will be preprocessed to remove the background and recenter the object by cropping and/or padding as necessary. '
+                    'If disabled, the image will be used as-is, *BUT* a fully transparent or white background is required.'),
         # gr.Number(label='polar (between axis z+)'),
         # gr.Number(label='azimuth (between axis x+)'),
         # gr.Number(label='z (distance from center)'),
-        gr.Slider(-90, 90, value=0, step=5, label='Polar angle (vertical rotation in degrees)',
-        info='Positive values move the camera down, while negative values move the camera up.'),
-        gr.Slider(-90, 90, value=0, step=5, label='Azimuth angle (horizontal rotation in degrees)',
-        info='Positive values move the camera right, while negative values move the camera left.'),
-        gr.Slider(-2, 2, value=0, step=0.5, label='Radius (distance from center)',
-        info='Positive values move the camera further away, while negative values move the camera closer.'),
+        polar_slider,
+        azimuth_slider,
+        radius_slider,
         gr.Slider(0, 30, value=3, step=1, label='cfg scale'),
         gr.Slider(1, 8, value=4, step=1, label='Number of samples to generate'),
-        gr.Slider(5, 200, value=100, step=5, label='Number of steps'),
+        gr.Slider(5, 200, value=100, step=5, label='Number of diffusion steps'),
     ]
-    output = [gr.Gallery(label='Generated images from specified new viewpoint')]
-    output[0].style(grid=2)
-    
+
+    vis_output = gr.Plot(label='Relationship between input and output camera pose')
+    gen_output = gr.Gallery(label='Generated images from specified new viewpoint')
+    gen_output.style(grid=2)
+
+    outputs = [vis_output, gen_output]
+
     if _SHOW_INTERMEDIATE:
-        output += [gr.Image(type='pil', image_mode='RGB', label='Preprocessed input image')]
+        preproc_output = gr.Image(type='pil', image_mode='RGB', label='Preprocessed input image')
+        outputs += [preproc_output]
+
+    polar_slider.change(fn=polar_change, inputs=polar_slider, outputs=vis_output)
 
     fn_with_model = partial(main, model, device)
     fn_with_model.__name__ = 'fn_with_model'
@@ -204,11 +225,11 @@ def run_demo(
 
     demo = gr.Interface(
         fn=fn_with_model,
-        title='Demo for Zero-Shot Control of Camera Viewpoints within a Single Image',
-        description=description,
-        article=article,
+        title=_TITLE,
+        description=_DESCRIPTION,
+        article=_ARTICLE,
         inputs=inputs,
-        outputs=output,
+        outputs=outputs[1:3],  # Ignore vis_output.
         examples=examples,
         allow_flagging='never',
     )
