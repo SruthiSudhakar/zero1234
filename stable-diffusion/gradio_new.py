@@ -23,7 +23,7 @@ def load_model_from_config(config, ckpt, device, verbose=False):
     print(f'Loading model from {ckpt}')
     pl_sd = torch.load(ckpt, map_location=device)
     if 'global_step' in pl_sd:
-        print(f'Global Step: {pl_sd['global_step']}')
+        print(f'Global Step: {pl_sd["global_step"]}')
     sd = pl_sd['state_dict']
     model = instantiate_from_config(config.model)
     m, u = model.load_state_dict(sd, strict=False)
@@ -96,14 +96,17 @@ def main(
     w=256,
 ):
     # input_im[input_im == [0., 0., 0.]] = [1., 1., 1., 1.]
-    print('old input_im:', input_im.shape)
+    print('old input_im:', input_im.size)
 
     if preprocess:
         input_im = load_and_preprocess(input_im)
+        input_im = (input_im / 255.0).astype(np.float32)
+        # (H, W, 3) array in [0, 1].
+
     else:
         input_im = input_im.resize([256, 256], Image.Resampling.LANCZOS)
-        input_im = np.asarray(input_im, dtype=np.float32) / 255.
-        # (H, W, C) array in [0, 1].
+        input_im = np.asarray(input_im, dtype=np.float32) / 255.0
+        # (H, W, 4) array in [0, 1].
         
         # old method: very important, thresholding background
         # input_im[input_im[:, :, -1] <= 0.9] = [1., 1., 1., 1.]
@@ -114,24 +117,27 @@ def main(
         white_im = np.ones_like(input_im)
         input_im = alpha * input_im + (1.0 - alpha) * white_im
         
-        input_im = input_im[:, :, :3]
+        input_im = input_im[:, :, 0:3]
+        # (H, W, 3) array in [0, 1].
 
-    print('new input_im:', input_im.shape)
+    print('new input_im:', input_im.shape, input_im.dtype, input_im.min(), input_im.max())
+    show_in_im = Image.fromarray((input_im * 255).astype(np.uint8))
+
     input_im = transforms.ToTensor()(input_im).unsqueeze(0).to(device)
     input_im = input_im * 2 - 1
     input_im = transforms.functional.resize(input_im, [h, w])
 
     sampler = DDIMSampler(model)
-
     x_samples_ddim = sample_model(input_im, model, sampler, precision, h, w,
                                   ddim_steps, n_samples, scale, ddim_eta, x, y, z)
+
     output_ims = []
     for x_sample in x_samples_ddim:
         x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
         output_ims.append(Image.fromarray(x_sample.astype(np.uint8)))
     
     if _SHOW_INTERMEDIATE:
-        return (output_ims, input_im)
+        return (output_ims, show_in_im)
     else:
         return output_ims
 
@@ -167,19 +173,21 @@ def run_demo(
         # gr.Number(label='azimuth (between axis x+)'),
         # gr.Number(label='z (distance from center)'),
         gr.Slider(-90, 90, value=0, step=5, label='Polar angle (vertical rotation in degrees)',
-        info='Positive values move the camera up, while negative values move the camera down.'),
+        info='Positive values move the camera down, while negative values move the camera up.'),
         gr.Slider(-90, 90, value=0, step=5, label='Azimuth angle (horizontal rotation in degrees)',
         info='Positive values move the camera right, while negative values move the camera left.'),
         gr.Slider(-2, 2, value=0, step=0.5, label='Radius (distance from center)',
         info='Positive values move the camera further away, while negative values move the camera closer.'),
         gr.Slider(0, 30, value=3, step=1, label='cfg scale'),
-        gr.Slider(1, 8, value=4, step=1, label='Number of images to generate'),
+        gr.Slider(1, 8, value=4, step=1, label='Number of samples to generate'),
         gr.Slider(5, 200, value=100, step=5, label='Number of steps'),
     ]
-    output = [gr.Gallery(label='Generated variations')]
+    output = [gr.Gallery(label='Generated images from specified new viewpoint')]
+    output[0].style(grid=2)
+    
     if _SHOW_INTERMEDIATE:
         output += [gr.Image(type='pil', image_mode='RGB', label='Preprocessed input image')]
-    output[0].style(grid=2)
+        output[1].style(grid=2)
 
     fn_with_model = partial(main, model, device)
     fn_with_model.__name__ = 'fn_with_model'

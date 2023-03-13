@@ -43,15 +43,15 @@ def add_margin(pil_img, color, size=256):
     result.paste(pil_img, ((size - width) // 2, (size - height) // 2))
     return result
 
-def load_and_preprocess(image):
+def load_and_preprocess(input_im):
     '''
-    :param seen_rgb (H, W, 3) tensor in [0, 1].
-    :return est_seg (H, W) array in [0, 255].
+    :param input_im (PIL Image).
+    :return image (H, W, 3) array in [0, 1].
     '''
     start_time = time.time()
     # See https://github.com/Ir1d/image-background-remove-tool
 
-    # Check doc strings for more informationz
+    # Check doc strings for more information
     interface = HiInterface(object_type="object",  # Can be "object" or "hairs-like".
                             batch_size_seg=5,
                             batch_size_matting=1,
@@ -63,7 +63,7 @@ def load_and_preprocess(image):
                             trimap_erosion_iters=5,
                             fp16=False)
     
-    image = image.convert('RGB')
+    image = input_im.convert('RGB')
 
     image_without_background = interface([image])[0]
     image_without_background = np.array(image_without_background)
