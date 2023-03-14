@@ -81,13 +81,14 @@ class SJC(BaseConf):
     pose:       PoseConfig = PoseConfig(rend_hw=32, FoV=49.1, R=2.0)
 
     emptiness_scale:    int = 10
-    emptiness_weight:   int = 1e4
+    emptiness_weight:   int = 0
     emptiness_step:     float = 0.5
     emptiness_multiplier: float = 20.0
 
     grad_accum: int = 1
 
     depth_smooth_weight: float = 1e5
+    near_view_weight: float = 1e5
 
     depth_weight:       int = 0
 
@@ -125,7 +126,7 @@ class SJC(BaseConf):
 def sjc_3d(poser, vox, model: ScoreAdapter,
     lr, n_steps, emptiness_scale, emptiness_weight, emptiness_step, emptiness_multiplier,
     depth_weight, var_red, train_view, scene, index, view_weight, prefix, nerf_path, \
-    depth_smooth_weight, grad_accum, **kwargs):
+    depth_smooth_weight, near_view_weight, grad_accum, **kwargs):
 
     assert model.samps_centered()
     _, target_H, target_W = model.data_shape()
@@ -142,8 +143,8 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
 
     same_noise = torch.randn(1, 4, H, W, device=model.device).repeat(bs, 1, 1, 1)
 
-    folder_name = prefix + '/scene-%s-index-%d_scale-%s_train-view-%s_view-weight-%s_emp-wt-%s_emp-mtplr-%s_emp_scl-%s' % \
-                            (scene, index, model.scale, train_view, view_weight, emptiness_weight, emptiness_multiplier, emptiness_scale)
+    folder_name = prefix + '/scene-%s-index-%d_scale-%s_train-view-%s_view-weight-%s_depth-smooth-wt-%s_near-view-wt-%s' % \
+                            (scene, index, model.scale, train_view, view_weight, depth_smooth_weight, near_view_weight)
 
     # load nerf view
     images_, _, poses_, mask_, fov_x = load_blender('train', scene=scene, path=nerf_path)
@@ -215,7 +216,7 @@ def sjc_3d(poser, vox, model: ScoreAdapter,
             near_eye = sample_near_eye(eye)
             near_pose = camera_pose(near_eye, -near_eye, poser.up)
             y_near, depth_near, ws_near = render_one_view(vox, aabb, H, W, Ks[i], near_pose, return_w=True)
-            near_loss = ((y_near - y).abs().mean() + (depth_near - depth).abs().mean()) * 0.
+            near_loss = ((y_near - y).abs().mean() + (depth_near - depth).abs().mean()) * near_view_weight
             near_loss.backward(retain_graph=True)
 
             # get T from input view
