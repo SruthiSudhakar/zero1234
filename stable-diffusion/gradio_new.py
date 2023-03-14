@@ -134,17 +134,6 @@ def preprocess_image(input_im, preprocess):
     return input_im
 
 
-# def main_vis(cam_vis, raw_im, preprocess=True):
-
-#     input_im = preprocess_image(raw_im, preprocess)
-
-#     show_in_im1 = (input_im * 255).astype(np.uint8)
-#     show_in_im2 = Image.fromarray(show_in_im1)
-#     new_fig = cam_vis.encode_image(show_in_im1)
-
-#     return (new_fig, show_in_im2)
-
-
 def main_run(model, device, cam_vis, vis_only, raw_im=None,
              preprocess=True, x=0.0, y=0.0, z=0.0,
              scale=3.0, n_samples=4, ddim_steps=50, ddim_eta=1.0,
