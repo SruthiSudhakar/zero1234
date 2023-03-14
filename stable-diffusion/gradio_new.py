@@ -26,7 +26,7 @@ from torchvision import transforms
 
 
 _SHOW_INTERMEDIATE = False
-_GPU_INDEX = 0
+_GPU_INDEX = 1
 # _GPU_INDEX = 2
 
 _TITLE = 'Zero-Shot Control of Camera Viewpoints within a Single Image'
