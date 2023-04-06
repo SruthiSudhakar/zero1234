@@ -8,6 +8,8 @@ from einops import rearrange
 from ldm.util import instantiate_from_config
 from ldm.modules.attention import LinearAttention
 
+import pdb
+
 
 def get_timestep_embedding(timesteps, embedding_dim):
     """

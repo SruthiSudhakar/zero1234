@@ -35,15 +35,17 @@ Apply SJC for 3D reconstruction:
 cd sjc
 pip install -r requirements.txt
 python run_sjc_objaverse.py \
-    --scene 'pikachu' \
-    --index 0 \
     --n_steps 10000 \
-    --lr 0.05 \
+    --lr 0.005 \
     --sd.scale 100.0 \
     --depth_smooth_weight 10000. \
+    --emptiness_weight 0 \
     --near_view_weight 10000. \
     --train_view True \
     --prefix 'experiments/exp_wild' \
     --vox.blend_bg_texture False \
-    --nerf_path 'data/nerf_wild'
+    --nerf_path 'data/nerf_wild' \
+    --scene 'elevendbeanie' \
+    --vox.time_lr 0.001
+
 ```

@@ -6,7 +6,7 @@ sd:
   im_path: data/nerf_synthetic/chair/train/r_2.png
   scale: 100.0
   precision: autocast
-lr: 0.05
+lr: 0.005
 n_steps: 10000
 vox:
   model_type: V_SD
@@ -21,6 +21,7 @@ vox:
   c: 4
   blend_bg_texture: false
   bg_texture_hw: 4
+  time_lr: 0.001
 pose:
   rend_hw: 32
   FoV: 49.1
@@ -36,8 +37,8 @@ near_view_weight: 10000.0
 depth_weight: 0
 var_red: true
 train_view: true
-scene: pikachu
-index: 0
+scene: elevendbeanie
+index: 2
 view_weight: 10000
 prefix: experiments/exp_wild
 nerf_path: data/nerf_wild

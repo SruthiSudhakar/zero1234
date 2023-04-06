@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import imageio
+import pdb
 
 from my.utils.tqdm import tqdm
 from my.utils.event import EventStorage, read_stats, get_event_storage
@@ -59,6 +60,8 @@ class OneTestView():
 def train(
     model, n_epoch=2, bs=4096, lr=0.02, scene="lego"
 ):
+    print("IN PIPELINE TRAIN")
+    # pdb.set_trace()
     fuse = EarlyLoopBreak(500)
 
     aabb = model.aabb.T.numpy()

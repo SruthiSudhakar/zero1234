@@ -19,7 +19,7 @@ class VoxConfig(BaseConf):
     c:                          int = 3
     blend_bg_texture:           bool = False
     bg_texture_hw:              int = 64
-
+    time_lr:                    float = 0.0001
     @validator("grid_size")
     def check_gsize(cls, grid_size):
         if isinstance(grid_size, int):

@@ -5,9 +5,10 @@ import imageio
 import os
 import cv2
 from .utils import blend_rgba
-
+import pdb
 
 def load_blender(split, scene="lego", half_res=False, path="data/nerf_synthetic"):
+    #Change to return times 
     assert split in ("train", "val", "test")
 
     root = Path(path) / scene
@@ -15,22 +16,27 @@ def load_blender(split, scene="lego", half_res=False, path="data/nerf_synthetic"
     with open(root / f'transforms_{split}.json', "r") as f:
         meta = json.load(f)
 
-    imgs, poses = [], []
+    imgs, poses, times = [], [], []
 
-    for frame in meta['frames']:
+    for t, frame in enumerate(meta['frames']):
         file_name = root / f"{frame['file_path']}.png"
         im = imageio.imread(file_name)
         im = cv2.resize(im, (800, 800), interpolation = cv2.INTER_CUBIC)
+        cur_time = frame['time'] if 'time' in frame else float(t) / (len(meta['frames'])-1)
 
         c2w = frame['transform_matrix']
 
         imgs.append(im)
         poses.append(c2w)
+        times.append(cur_time)
+
+    assert times[0] == 0, "Time must start at 0"
 
     imgs = (np.array(imgs) / 255.).astype(np.float32)  # (RGBA) imgs
     mask = imgs[:, :, :, -1]
     imgs = blend_rgba(imgs)
     poses = np.array(poses).astype(np.float32)
+    times = np.array(times).astype(np.float32)
 
     H, W = imgs[0].shape[:2]
     camera_angle_x = float(meta['camera_angle_x'])
@@ -47,7 +53,7 @@ def load_blender(split, scene="lego", half_res=False, path="data/nerf_synthetic"
 
     fov = meta['camera_angle_x']
 
-    return imgs, K, poses, mask, fov
+    return imgs, K, poses, times, mask, fov
 
 def load_wild(dataset_root, scene, index):
 

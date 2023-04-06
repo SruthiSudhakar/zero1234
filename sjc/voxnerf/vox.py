@@ -7,6 +7,7 @@ import mcubes
 import point_cloud_utils as pcu
 from scipy.ndimage import uniform_filter, median_filter, grey_erosion, binary_erosion
 from my.registry import Registry
+import pdb
 
 VOXRF_REGISTRY = Registry("VoxRF")
 
@@ -69,6 +70,7 @@ class VoxRF(nn.Module):
     
     @torch.no_grad()
     def export_mesh(self, path, reso_mult=2, threshold=None, threshold_mult=8, kernel_size=7, kernel_type="avg", erosion_kernel_size=5):
+        # pdb.set_trace()
         if reso_mult is None:
             sigma = self.density
             reso_mult = 1
@@ -224,6 +226,9 @@ class V_SJC(VoxRF):
         for name, param in self.named_parameters():
             # print(f"{name} {param.shape}")
             grp = {"params": param}
+            if "_time" in name:
+                print(f"CHANGED LR FOR: {name}")
+                grp['lr'] = self.time_lr
             if name in ["bg"]:
                 grp["lr"] = 0.0001
             if name in ["density"]:
@@ -251,11 +256,61 @@ class V_SJC(VoxRF):
 
 @VOXRF_REGISTRY.register()
 class V_SD(V_SJC):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, D=8, W=256, input_ch=63, input_ch_time=21, skips=[4], zero_canonical=True, time_lr=0.0001, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # rendering in feature space; no sigmoid thresholding
         self.feats2color = lambda feats: feats
 
+        #added for the time aspect
+        self.W = W
+        self.D = D
+        self.input_ch = input_ch
+        self.input_ch_time = input_ch_time
+        self.skips = skips
+        self.zero_canonical = zero_canonical
+        self.time_lr = time_lr
+        self._time, self._time_out = self.create_time_net()
+
+
+    #include time querying
+    def create_time_net(self):
+        # print("CREATE TIME NET")
+        # pdb.set_trace()
+        layers = [nn.Linear(self.input_ch + self.input_ch_time, self.W)]
+        for i in range(self.D - 1):
+            layer = nn.Linear
+
+            in_channels = self.W
+            if i in self.skips:
+                in_channels += self.input_ch
+
+            layers += [layer(in_channels, self.W)]
+        return nn.ModuleList(layers), nn.Linear(self.W, 3)
+
+    def query_time(self, new_pts, t, net, net_final):
+        # print("IN QUERY_TIME")
+        # pdb.set_trace()
+        h = torch.cat([new_pts, t], dim=-1)
+        for i, l in enumerate(net):
+            h = net[i](h)
+            h = F.relu(h)
+            if i in self.skips:
+                h = torch.cat([new_pts, h], -1)
+
+        return net_final(h)
+
+    def compute_displacement_pts(self, x, ts):
+        input_pts = x
+        t = ts[0]
+        assert len(torch.unique(t[:, :1])) == 1, "Only accepts all points from same time"
+        cur_time = t[0, 0]
+        if cur_time == 0. and self.zero_canonical:
+            dx = torch.zeros_like(input_pts[:, :3])
+        else:
+            # print("IN COMPUTE DISPLACEMENT")
+            # pdb.set_trace()
+            dx = self.query_time(input_pts, t, self._time, self._time_out)
+        return dx
 
 class AlphaMask(nn.Module):
     def __init__(self, aabb, alphas):

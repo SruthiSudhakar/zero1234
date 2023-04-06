@@ -2,7 +2,61 @@ import numpy as np
 import torch
 from my3d import unproject
 import math
+import pdb
+import matplotlib.pyplot as plt
+import plotly
+from plotly import figure_factory
 
+class Embedder:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.create_embedding_fn()
+        
+    def create_embedding_fn(self):
+        embed_fns = []
+        d = self.kwargs['input_dims']
+        out_dim = 0
+        if self.kwargs['include_input']:
+            embed_fns.append(lambda x : x)
+            out_dim += d
+            
+        max_freq = self.kwargs['max_freq_log2']
+        N_freqs = self.kwargs['num_freqs']
+        
+        if self.kwargs['log_sampling']:
+            freq_bands = 2.**torch.linspace(0., max_freq, steps=N_freqs)
+        else:
+            freq_bands = torch.linspace(2.**0., 2.**max_freq, steps=N_freqs)
+            
+        for freq in freq_bands:
+            for p_fn in self.kwargs['periodic_fns']:
+                embed_fns.append(lambda x, p_fn=p_fn, freq=freq : p_fn(x * freq))
+                out_dim += d
+                    
+        self.embed_fns = embed_fns
+        self.out_dim = out_dim
+        
+    def embed(self, inputs):
+        return torch.cat([fn(inputs) for fn in self.embed_fns], -1)
+
+def get_embedder(multires, input_dims, i=0):
+    # print("IN EMBEDDER FUNCTION")
+    # pdb.set_trace()
+    if i == -1:
+        return nn.Identity(), input_dims
+    
+    embed_kwargs = {
+                'include_input' : True,
+                'input_dims' : input_dims,
+                'max_freq_log2' : multires-1,
+                'num_freqs' : multires,
+                'log_sampling' : True,
+                'periodic_fns' : [torch.sin, torch.cos],
+    }
+    
+    embedder_obj = Embedder(**embed_kwargs)
+    embed = lambda x, eo=embedder_obj : eo.embed(x)
+    return embed, embedder_obj.out_dim
 
 def subpixel_rays_from_img(H, W, K, c2w_pose, normalize_dir=True, f=8):
     assert c2w_pose[3, 3] == 1.
@@ -26,6 +80,7 @@ def subpixel_rays_from_img(H, W, K, c2w_pose, normalize_dir=True, f=8):
 
 
 def rays_from_img(H, W, K, c2w_pose, normalize_dir=True):
+    # print("IN RENDER RAYS_FROM_IMG")
     assert c2w_pose[3, 3] == 1.
     n = H * W
     ys, xs = np.meshgrid(range(H), range(W), indexing="ij")
@@ -141,9 +196,65 @@ def scene_box_filter(ro, rd, aabb):
     ro, rd, t_min, t_max = group_mask_filter(is_intsct, ro, rd, t_min, t_max)
     intsct_inds = np.arange(N)[is_intsct]
     return ro, rd, t_min, t_max, intsct_inds
+def batchify(fn, chunk):
+    """Constructs a version of 'fn' that applies to smaller batches.
+    """
+    if chunk is None:
+        return fn
+    def ret(inputs_pos, inputs_time):
+        num_batches = inputs_pos.shape[0]
+        dx_list = []
+        # for i in range(0, num_batches, chunk):
+        #     # print("IN RENDER_ONE_VIEW -> RENDER_RAY_BUNDLE -> RUN_NETWORK -> BATCHIFY")
+        #     # pdb.set_trace()
+        #     dx = fn(inputs_pos[i:i+chunk], [inputs_time[0][i:i+chunk], inputs_time[1][i:i+chunk]])
+        #     dx_list += [dx]
+        # return torch.cat(dx_list, 0)
+        dx = fn(inputs_pos, [inputs_time[0], inputs_time[1]])
+        return dx
+    return ret
+def run_network(inputs, frame_time, fn, embed_fn, embedtime_fn, netchunk=1024*64,
+                embd_time_discr=True):
+    """Prepares inputs and applies network 'fn'.
+    inputs: N_points_per_ray x N_rays x 3 /// SWITCHED FROM N_rays x N_points_per_ray x 3
+    viewdirs: N_rays x 3
+    frame_time: N_rays x 1
+    """
+    assert len(torch.unique(frame_time)) == 1, "Only accepts all points from same time"
+    cur_time = torch.unique(frame_time)[0]
 
+    # embed position
+    inputs_flat = torch.reshape(inputs, [-1, inputs.shape[-1]])
+    embedded = embed_fn(inputs_flat) # [(N_points_per_ray x N_rays), 3]
+    
+    # print("IN RENDER_ONE_VIEW -> RENDER_RAY_BUNDLE -> RUN_NETWORK")
+    # pdb.set_trace()
 
-def render_ray_bundle(model, ro, rd, t_min, t_max):
+    # embed time
+    if embd_time_discr:
+        N, B, _ = inputs.shape
+        input_frame_time = frame_time[:, None].expand([B, N, 1])
+        input_frame_time_flat = torch.reshape(input_frame_time, [-1, 1])
+        embedded_time = embedtime_fn(input_frame_time_flat) # [(N_points_per_ray x N_rays), 3]
+        embedded_times = [embedded_time, embedded_time]
+
+    else:
+        assert NotImplementedError
+    # print("IN RUN NETWORK")
+    # pdb.set_trace()
+    position_delta_flat = batchify(fn, netchunk)(embedded, embedded_times)
+    position_delta = torch.reshape(position_delta_flat, list(inputs.shape[:-1]) + [position_delta_flat.shape[-1]])
+    return position_delta
+
+def plot_it(temp, fname):
+    fig = plt.figure(figsize=(8, 8))
+    temp = temp.clone().detach().cpu().numpy()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(temp[0,:,0],temp[0,:,1],temp[0,:,2])
+    plt.show()
+    plt.savefig(f"{fname}.png")
+
+def render_ray_bundle(model, ro, rd, t_min, t_max, frame_time, multires=10, i_embed=0):
     """
     The working shape is (k, n, 3) where k is num of samples per ray, n the ray batch size
     During integration the reduction is applied on k
@@ -164,20 +275,30 @@ def render_ray_bundle(model, ro, rd, t_min, t_max):
     t_max = t_max.view(n, 1)
     dists = t_min + ticks  # [n, 1], [k, 1, 1] -> [k, n, 1]
     pts = ro + rd * dists  # [n, 3], [n, 3], [k, n, 1] -> [k, n, 3]
+
+    embed_fn, input_ch = get_embedder(multires, 3, i_embed)
+    embedtime_fn, input_ch_time = get_embedder(multires, 1, i_embed)
+    position_delta = run_network(pts, frame_time, model.compute_displacement_pts, embed_fn, embedtime_fn)
+    transformed_pts = pts+position_delta
+
+    og_pds = position_delta.clone().detach().cpu().numpy().reshape((-1,)+position_delta.shape[2:])
+    og_pts = pts.clone().detach().cpu().numpy().reshape((-1,)+pts.shape[2:])
+    og_tps = transformed_pts.clone().detach().cpu().numpy().reshape((-1,)+pts.shape[2:])
+
     mask = (ticks < (t_max - t_min)).squeeze(-1)  # [k, 1, 1], [n, 1] -> [k, n, 1] -> [k, n]
-    smp_pts = pts[mask]
+    smp_pts = transformed_pts[mask]    
 
     if model.alphaMask is not None:
         alphas = model.alphaMask.sample_alpha(smp_pts)
         alpha_mask = alphas > 0
         mask[mask.clone()] = alpha_mask
-        smp_pts = pts[mask]
+        smp_pts = transformed_pts[mask]
 
     σ = torch.zeros(k, n, device=ro.device)
     σ[mask] = model.compute_density_feats(smp_pts)
     weights = volume_rend_weights(σ, step_size)
     mask = weights > model.ray_march_weight_thres
-    smp_pts = pts[mask]
+    smp_pts = transformed_pts[mask]
 
     app_feats = model.compute_app_feats(smp_pts)
     # viewdirs = rd.view(1, n, 3).expand(k, n, 3)[mask]  # ray dirs for each point
@@ -206,7 +327,7 @@ def render_ray_bundle(model, ro, rd, t_min, t_max):
     E_dists = (weights * dists).sum(dim=0)
     bg_dist = 10.  # blend bg distance; just don't make it too large
     E_dists = E_dists + bg_weight * bg_dist
-    return rgbs, E_dists, weights
+    return rgbs, E_dists, weights, position_delta#, og_pts, og_pds, og_tps
 
 
 def spherical_xyz_to_uv(xyz):
