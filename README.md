@@ -1,5 +1,3 @@
-
-
 ## Usage
 
 Installation:
@@ -49,3 +47,8 @@ python run_sjc_objaverse.py \
     --vox.time_lr 0.001
 
 ```
+
+
+## Acknowledgement
+
+This repo is based on [Zero123](https://github.com/cvlab-columbia/zero123) and [D-Nerf](https://github.com/albertpumarola/D-NeRF)
